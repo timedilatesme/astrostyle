@@ -1,0 +1,76 @@
+# astrostyle
+
+Dynamic, journal-agnostic publication plotting package + AI-agent contract for astrophysics papers (ApJ/AJ/ApJS, MNRAS, A&A, Nature Astronomy).
+
+## Key Features
+
+- **Journal-Agnostic Print Widths**: `SINGLE_COL = 3.50 in` and `DOUBLE_COL = 7.10 in` drop into ApJ, MNRAS, A&A, and Nature Astronomy with <= ±4% rescaling.
+- **Width-Proportional Dynamic Styling**: Bold frames (`2.4 pt` base), prominent **inward major and minor ticks on all four sides**, and large bold typography automatically scale with figure width so wide grids and corner plots never suffer from tiny text.
+- **Bulletproof LaTeX Rendering (`usetex="auto"`)**: Uses full LaTeX (`amsmath`, `amssymb`, `bm`, `newtxtext`/`newtxmath`) whenever `latex` + `dvipng` are available, and seamlessly falls back to STIX mathtext on clusters or containers without TeX—plus built-in LaTeX label linting and `%`/`&` escaping.
+- **Aspect-Locked Archetypes**: `fig_xy`, `fig_residuals`, `fig_image`, `fig_wcs`, `fig_grid`, `fig_corner` (strictly `1:1` square panels, works with or without `corner` installed), `add_inset`, `add_beam`, and `add_scalebar`.
+- **Universal Post-Processor (`astro.polish` / `astro.save`)**: Enforces inward ticks, white ticks over dark heatmaps, auto-rasterization for `> 3,000` scatter points, tick-collision linting, and dual vector `.pdf` + `300 dpi` `.png` export.
+- **Zero-Copy AI Agent Workflow**: Bundle rules once inside this repo; point any coding agent (Cursor, Claude Code, Codex, Copilot) to `python -m astrostyle.guide`.
+
+---
+
+## 1. Push Once to GitHub
+
+```bash
+unzip astrostyle.zip
+cd astrostyle
+git init
+git add .
+git commit -m "Initial commit: dynamic astrostyle plotting package"
+git branch -M main
+git remote add origin https://github.com/<your-username>/astrostyle.git
+git push -u origin main
+```
+
+## 2. Use in Any Science Project (Zero File Copying)
+
+Install directly from GitHub into your project environment:
+
+```bash
+pip install "git+https://github.com/<your-username>/astrostyle.git"
+# Optional extras for Astropy WCS maps and external corner.py:
+pip install "astrostyle[all] @ git+https://github.com/<your-username>/astrostyle.git"
+```
+
+Initialize the compact 5-line `AGENTS.md` + 1-line `CLAUDE.md` stub in your project root:
+
+```bash
+astrostyle-init .
+```
+
+Any AI agent working on your project will now run `python -m astrostyle.guide` and follow your exact plotting style automatically.
+
+---
+
+## 3. Quick Usage Examples
+
+```python
+import astrostyle as astro
+
+# 1D publication curve
+fig, ax = astro.fig_xy(width=astro.SINGLE_COL)
+ax.plot(z, d_l, label=r"$\Lambda\mathrm{CDM}$")
+ax.set_xlabel(astro.ASTRO_LABELS["redshift"])
+ax.set_ylabel(astro.ASTRO_LABELS["luminosity_distance"])
+ax.legend()
+astro.save(fig, "figures/distance_redshift")
+
+# 3-parameter MCMC corner plot (strictly 1:1 square panels)
+fig, axes = astro.fig_corner(
+    [chain_planck, chain_des],
+    labels=[astro.ASTRO_LABELS["omega_m"], astro.ASTRO_LABELS["sigma_8"], astro.ASTRO_LABELS["h0"]],
+    names=[r"Planck CMB", r"DES Lensing + BAO"],
+)
+astro.save(fig, "figures/posterior_corner")
+```
+
+Run the included gallery smoke test or unit tests:
+
+```bash
+python examples/generate_gallery.py
+python -m unittest discover -s tests -v
+```
