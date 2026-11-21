@@ -10,6 +10,8 @@ Import directly from `astrostyle`:
 import astrostyle as astro
 ```
 
+Project-wide options (`context`, `palette`, `usetex`, `text_scale`, `frame_weight`) are set once with `astro.apply_style(...)`; every builder inherits them. Pass the same keywords to a single builder to override them for that figure only. Do not hard-code fonts or colors instead.
+
 Choose the matching builder for the figure type:
 
 - **1D curves, SEDs, light curves, scaling relations, scatter/errorbars**
@@ -50,7 +52,7 @@ Choose the matching builder for the figure type:
 
 - **No background grids** (`axes.grid` is `False`).
 - **Both major and minor ticks MUST point inward on all four sides** (automatically enforced by `astro.polish()`).
-- Use the default colorblind-safe discrete palette (do not invent arbitrary hex colors or `red`/`green` pairs).
+- Use the project's colorblind-safe palette (`astro.PALETTES`); do not invent arbitrary hex colors or `red`/`green` pairs.
 - Colormaps: `inferno`, `magma`, `viridis`, or `cividis` for intensity/density; `RdBu_r` centered at zero (`TwoSlopeNorm`) for velocity or residuals. **Never use `jet` or `rainbow`.**
 - Dense scatter/mesh plots (`> 3,000` points) are automatically rasterized by `astro.polish(fig)` so PDFs stay small while text and axes remain vector.
 

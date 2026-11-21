@@ -1,9 +1,9 @@
-"""Universal post-processor, visual linter, and dual-format exporter."""
+"""Post-processing, linting and PDF + PNG export for any Matplotlib figure."""
 
 from __future__ import annotations
 
-from pathlib import Path
 from collections.abc import Iterable
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -36,23 +36,17 @@ def _has_dark_image(ax: mpl.axes.Axes) -> bool:
     return any(name in cmap_name for name in DARK_CMAP_NAMES)
 
 
-def _auto_rasterize_heavy_artists(ax: mpl.axes.Axes, threshold: int = RASTERIZE_POINT_THRESHOLD) -> int:
-    """Rasterize dense scatter/mesh layers so vector PDFs stay compact while text stays vector."""
-    count = 0
+def _rasterize_dense_collections(ax: mpl.axes.Axes, threshold: int) -> None:
+    """Rasterize big scatter/mesh layers so PDFs stay small; text and axes stay vector."""
     for coll in ax.collections:
-        if coll.get_rasterized():
-            continue
         if isinstance(coll, PathCollection):
-            offsets = coll.get_offsets()
-            if len(offsets) >= threshold:
-                coll.set_rasterized(True)
-                count += 1
-        elif isinstance(coll, QuadMesh):
-            arr = coll.get_array()
-            if arr is not None and arr.size >= threshold:
-                coll.set_rasterized(True)
-                count += 1
-    return count
+            n = len(coll.get_offsets())
+        elif isinstance(coll, QuadMesh) and coll.get_array() is not None:
+            n = coll.get_array().size
+        else:
+            continue
+        if n >= threshold:
+            coll.set_rasterized(True)
 
 
 def style_wcs_coords(ax) -> None:
@@ -69,7 +63,7 @@ def style_wcs_coords(ax) -> None:
 
 
 def _enforce_minor_and_inward_ticks(ax: mpl.axes.Axes) -> None:
-    """Guarantee thick borders and inward major + minor ticks on all four sides."""
+    """Frame weight plus inward major and minor ticks on all four sides."""
     lw = mpl.rcParams["axes.linewidth"]
     for spine in ax.spines.values():
         spine.set_linewidth(lw)
@@ -119,7 +113,7 @@ def _enforce_minor_and_inward_ticks(ax: mpl.axes.Axes) -> None:
 
 
 def _sanitize_usetex_text(fig: mpl.figure.Figure) -> None:
-    """When text.usetex=True, safely escape stray %, &, # outside math spans to prevent crashes."""
+    """Under usetex, escape stray %, & and # outside math so LaTeX doesn't fail."""
     if not mpl.rcParams.get("text.usetex", False):
         return
     for ax in fig.axes:
@@ -139,12 +133,7 @@ def _sanitize_usetex_text(fig: mpl.figure.Figure) -> None:
 
 
 def lint_fig(fig: mpl.figure.Figure, verbose: bool = True) -> list[str]:
-    """
-    Inspect a rendered figure for visual & LaTeX defects:
-    - Overlapping x/y tick labels
-    - Raw unformatted subscripts/superscripts outside LaTeX math mode
-    - Unbalanced '$' or unescaped TeX characters
-    """
+    """Return (and optionally print) warnings for overlapping tick labels and malformed LaTeX labels."""
     issues: list[str] = []
     usetex_on = bool(mpl.rcParams.get("text.usetex", False))
 
@@ -190,7 +179,7 @@ def _tick_overlap_issues(fig: mpl.figure.Figure, renderer) -> list[str]:
 
 
 def _sync_attached_colorbars(fig: mpl.figure.Figure) -> None:
-    """Align sibling colorbar axes to the exact post-aspect bounding box of their parent image axes."""
+    """Move builder-created colorbar axes next to their parent's final (post-aspect) box."""
     attached = [ax for ax in fig.axes if getattr(ax, "_astro_parent_ax", None) is not None]
     if not attached:
         return
@@ -216,9 +205,9 @@ def polish(
     verbose: bool = True,
 ) -> list[str]:
     """
-    Universal post-processor: call on ANY figure (from archetype helpers or raw Matplotlib)
-    to enforce bold frames, inward major+minor ticks, dark-image tick contrast,
-    LaTeX safety, auto-rasterization, label alignment, and collision linting.
+    Enforce the house style on any figure, builder-made or not: frame weight,
+    inward minor ticks, white ticks over dark images, rasterized dense layers,
+    TeX escaping and label alignment. Returns lint warnings when lint=True.
     """
     _sync_attached_colorbars(fig)
 
@@ -227,7 +216,7 @@ def polish(
             continue
         _enforce_minor_and_inward_ticks(ax)
         if rasterize_threshold > 0:
-            _auto_rasterize_heavy_artists(ax, threshold=rasterize_threshold)
+            _rasterize_dense_collections(ax, rasterize_threshold)
 
     _sanitize_usetex_text(fig)
 
@@ -250,11 +239,7 @@ def save(
     lint: bool = True,
     close: bool = False,
 ) -> list[Path]:
-    """
-    Polish, lint, and export a figure to vector PDF + 300 dpi PNG preview.
-
-    Returns the list of written output Paths.
-    """
+    """Polish, lint and write `path_no_ext` in each format (vector PDF + 300 dpi PNG by default)."""
     if do_polish:
         polish(fig, lint=lint, verbose=True)
 
@@ -267,12 +252,9 @@ def save(
     if fig.get_layout_engine() is None:
         fig.set_layout_engine(PlaceHolderLayoutEngine(adjust_compatible=True, colorbar_gridspec=True))
 
-    written: list[Path] = []
-    for ext in formats:
-        ext_clean = ext.lstrip(".")
-        target = out.with_suffix(f".{ext_clean}")
+    written = [out.with_suffix("." + ext.lstrip(".")) for ext in formats]
+    for target in written:
         fig.savefig(target)
-        written.append(target)
 
     if close:
         plt.close(fig)

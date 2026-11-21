@@ -1,15 +1,15 @@
 # astrostyle
 
-Dynamic, journal-agnostic publication plotting package + AI-agent contract for astrophysics papers (ApJ/AJ/ApJS, MNRAS, A&A, Nature Astronomy).
+Publication-ready Matplotlib figures for astrophysics papers (ApJ/AJ, MNRAS, A&A, Nature Astronomy), plus a short contract that AI coding agents can follow.
 
-## Key Features
+## Features
 
-- **Journal-Agnostic Print Widths**: `SINGLE_COL = 3.50 in` and `DOUBLE_COL = 7.10 in` drop into ApJ, MNRAS, A&A, and Nature Astronomy with <= ±4% rescaling.
-- **Width-Proportional Dynamic Styling**: Bold frames (`2.4 pt` base), prominent **inward major and minor ticks on all four sides**, and large bold typography automatically scale with figure width so wide grids and corner plots never suffer from tiny text.
-- **Bulletproof LaTeX Rendering (`usetex="auto"`)**: Uses full LaTeX (`amsmath`, `amssymb`, `bm`, `newtxtext`/`newtxmath`) whenever `latex` + `dvipng` are available, and seamlessly falls back to STIX mathtext on clusters or containers without TeX—plus built-in LaTeX label linting and `%`/`&` escaping.
-- **Aspect-Locked Archetypes**: `fig_xy`, `fig_residuals`, `fig_image`, `fig_wcs`, `fig_grid`, `fig_corner` (strictly `1:1` square panels, works with or without `corner` installed), `add_inset`, `add_beam`, and `add_scalebar`.
-- **Universal Post-Processor (`astro.polish` / `astro.save`)**: Enforces inward ticks, white ticks over dark heatmaps, auto-rasterization for `> 3,000` scatter points, tick-collision linting, and dual vector `.pdf` + `300 dpi` `.png` export.
-- **Zero-Copy AI Agent Workflow**: Bundle rules once inside this repo; point any coding agent (Cursor, Claude Code, Codex, Copilot) to `python -m astrostyle.guide`.
+- **Journal-agnostic widths**: `SINGLE_COL = 3.50 in` and `DOUBLE_COL = 7.10 in` fit every major astro journal within about 4%.
+- **Width-aware styling**: frame weight, inward major and minor ticks on all four sides, and font sizes scale with figure width, so wide grids and corner plots keep readable text.
+- **LaTeX when available**: `usetex="auto"` uses real LaTeX (`amsmath`, `newtx`) when `latex` and `dvipng` work, and falls back to STIX mathtext otherwise. Labels are linted, and stray `%`, `&` and `#` are escaped.
+- **Figure builders**: `fig_xy`, `fig_residuals`, `fig_image`, `fig_wcs`, `fig_grid` and `fig_corner` (square panels, with or without the `corner` package), plus `add_inset`, `add_beam`, `add_scalebar` and `label_panels`.
+- **Works with any figure**: `astro.save` / `astro.polish` apply the style to figures from the builders, plain Matplotlib, GridSpec or seaborn. They also rasterize dense layers, warn about overlapping tick labels, and write a vector `.pdf` plus a 300 dpi `.png`.
+- **Agent-ready**: `astrostyle-init` adds a short pointer to `python -m astrostyle.guide` to a project's `AGENTS.md`/`CLAUDE.md`.
 
 ---
 
@@ -59,7 +59,11 @@ Any AI agent working on your project will now run `python -m astrostyle.guide` a
 ## Quick Start
 
 ```python
+import matplotlib.pyplot as plt
 import astrostyle as astro
+
+# Optional, once per project: every builder inherits these settings.
+astro.apply_style(context="paper", palette="okabe_ito", usetex="auto")
 
 # 1D publication curve
 fig, ax = astro.fig_xy(width=astro.SINGLE_COL)
@@ -76,6 +80,14 @@ fig, axes = astro.fig_corner(
     names=[r"Planck CMB", r"DES Lensing + BAO"],
 )
 astro.save(fig, "figures/posterior_corner")
+
+# Per-figure override (doesn't change the project defaults)
+fig, ax = astro.fig_xy(context="talk", palette="tol_bright")
+
+# Any hand-built Matplotlib figure: style first, save through astrostyle
+astro.apply_style(width=astro.DOUBLE_COL)
+fig, axes = plt.subplots(1, 3, figsize=(astro.DOUBLE_COL, 2.6))
+astro.save(fig, "figures/custom_layout")
 ```
 
 ## Tests

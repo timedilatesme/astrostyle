@@ -1,4 +1,4 @@
-"""astrostyle: Dynamic, journal-agnostic astrophysics publication plotting."""
+"""Journal-agnostic publication figures for astrophysics."""
 
 from .archetypes import (
     add_beam,
@@ -13,7 +13,6 @@ from .archetypes import (
     label_panels,
 )
 from .core import (
-    COLORMAPS,
     DEFAULT_FRAME_WEIGHT,
     DEFAULT_TEXT_SCALE,
     DOUBLE_COL,
@@ -21,7 +20,6 @@ from .core import (
     SINGLE_COL,
     apply_style,
     compute_style_metrics,
-    get_active_config,
     style_context,
 )
 from .latex import (
@@ -38,11 +36,9 @@ __all__ = [
     "DEFAULT_FRAME_WEIGHT",
     "DEFAULT_TEXT_SCALE",
     "PALETTES",
-    "COLORMAPS",
     "ASTRO_LABELS",
     "apply_style",
     "compute_style_metrics",
-    "get_active_config",
     "style_context",
     "is_tex_available",
     "unit_label",

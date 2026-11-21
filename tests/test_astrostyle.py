@@ -88,6 +88,18 @@ class TestAstroStyle(unittest.TestCase):
         self.assertTrue(sc.get_rasterized())
         plt.close(fig)
 
+    def test_builders_inherit_project_style(self):
+        with astro.style_context(palette="tol_bright", usetex=False):
+            fig, _ = astro.fig_xy()
+            self.assertEqual(plt.rcParams["axes.prop_cycle"].by_key()["color"][0], astro.PALETTES["tol_bright"][0])
+            plt.close(fig)
+            fig, _ = astro.fig_xy(palette="okabe_ito")
+            self.assertEqual(plt.rcParams["axes.prop_cycle"].by_key()["color"][0], astro.PALETTES["okabe_ito"][0])
+            plt.close(fig)
+            fig, _ = astro.fig_xy()
+            self.assertEqual(plt.rcParams["axes.prop_cycle"].by_key()["color"][0], astro.PALETTES["tol_bright"][0])
+            plt.close(fig)
+
     def test_guide_text_available(self):
         from astrostyle.guide import get_guide_text
         txt = get_guide_text()

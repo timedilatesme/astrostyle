@@ -1,4 +1,4 @@
-"""LaTeX detection, safe preamble setup, astro symbol helpers, and label linting."""
+"""LaTeX detection, axis-label helpers and label linting."""
 
 from __future__ import annotations
 
@@ -9,24 +9,10 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 
-# Standard astrophysics LaTeX preamble.
-# Uses \providecommand so it never conflicts with installed TeX classes/packages.
-BASE_TEX_PREAMBLE = r"""
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{bm}
-\providecommand{\Msun}{\mathrm{M}_\odot}
-\providecommand{\Lsun}{\mathrm{L}_\odot}
-\providecommand{\Rsun}{\mathrm{R}_\odot}
-\providecommand{\kms}{\mathrm{km\ s^{-1}}}
-\providecommand{\angstrom}{\text{\normalfont\AA}}
-\providecommand{\arcsec}{^{\prime\prime}}
-\providecommand{\arcmin}{^{\prime}}
-""".strip()
-
+BASE_TEX_PREAMBLE = r"\usepackage{amsmath,amssymb,bm}"
 NEWTX_SNIPPET = r"\usepackage{newtxtext,newtxmath}"
 
-# Ready-to-use astrophysics axis labels compatible with BOTH usetex=True and STIX mathtext.
+# Axis labels that render the same under usetex and STIX mathtext.
 ASTRO_LABELS = {
     "omega_m": r"$\Omega_{\mathrm{m}}$",
     "omega_lambda": r"$\Omega_{\Lambda}$",
@@ -49,45 +35,27 @@ _MATH_SPAN_RE = re.compile(r"(\$[^$]*\$)")
 _RAW_SUB_SUP_RE = re.compile(r"[A-Za-z0-9]+[_^][A-Za-z0-9]+")
 _UNESCAPED_TEX_SPECIAL_RE = re.compile(r"(?<!\\)([%&#])")
 
+_PROBE_DOC = r"""\documentclass{article}
+%s
+\begin{document}
+$\Omega_{\mathrm{m}}, \sigma_8, H_0\,[\mathrm{km\ s^{-1}\ Mpc^{-1}}], \mathrm{\AA}, M_\odot$
+\end{document}
+"""
+
 
 def _try_compile_latex(preamble: str) -> bool:
-    """Actually compile a minimal LaTeX snippet to confirm TeX + packages + dvipng work."""
+    """Compile a small document to confirm latex, the packages and dvipng all work."""
     if shutil.which("latex") is None or shutil.which("dvipng") is None:
         return False
-
-    doc = (
-        "\\documentclass{article}\n"
-        f"{preamble}\n"
-        "\\begin{document}\n"
-        "$\\Omega_{\\mathrm{m}}, \\sigma_8, H_0\\,[\\mathrm{km\\ s^{-1}\\ Mpc^{-1}}], \\mathrm{\\AA}, M_\\odot$\n"
-        "\\end{document}\n"
-    )
+    run = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "timeout": 8, "check": False}
     try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tex_file = Path(tmpdir) / "probe.tex"
-            tex_file.write_text(doc, encoding="utf-8")
-            res = subprocess.run(
-                ["latex", "-interaction=nonstopmode", "-halt-on-error", str(tex_file)],
-                cwd=tmpdir,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=8,
-                check=False,
-            )
-            if res.returncode != 0:
+        with tempfile.TemporaryDirectory() as tmp:
+            tex = Path(tmp) / "probe.tex"
+            tex.write_text(_PROBE_DOC % preamble, encoding="utf-8")
+            if subprocess.run(["latex", "-interaction=nonstopmode", "-halt-on-error", tex.name], cwd=tmp, **run).returncode:
                 return False
-            dvi_file = Path(tmpdir) / "probe.dvi"
-            if not dvi_file.exists():
-                return False
-            res2 = subprocess.run(
-                ["dvipng", "-T", "tight", "-o", str(Path(tmpdir) / "probe.png"), str(dvi_file)],
-                cwd=tmpdir,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=8,
-                check=False,
-            )
-            return res2.returncode == 0
+            dvi = tex.with_suffix(".dvi")
+            return dvi.exists() and subprocess.run(["dvipng", "-T", "tight", "-o", "probe.png", dvi.name], cwd=tmp, **run).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -95,17 +63,14 @@ def _try_compile_latex(preamble: str) -> bool:
 @lru_cache(maxsize=1)
 def detect_tex_support() -> tuple[bool, str]:
     """
-    Detect once per Python session whether full LaTeX rendering works.
+    Probe (once per session) whether LaTeX rendering works.
 
-    Returns (True, preamble) when latex + dvipng compile cleanly (preferring
-    newtxtext/newtxmath to match ApJ/MNRAS/A&A Times/STIX), or (False, "")
-    to fall back seamlessly to built-in STIX mathtext.
+    Returns (True, preamble), preferring newtx Times fonts, or (False, "") so
+    callers fall back to STIX mathtext.
     """
-    full_preamble = f"{BASE_TEX_PREAMBLE}\n{NEWTX_SNIPPET}"
-    if _try_compile_latex(full_preamble):
-        return True, full_preamble
-    if _try_compile_latex(BASE_TEX_PREAMBLE):
-        return True, BASE_TEX_PREAMBLE
+    for preamble in (f"{BASE_TEX_PREAMBLE}\n{NEWTX_SNIPPET}", BASE_TEX_PREAMBLE):
+        if _try_compile_latex(preamble):
+            return True, preamble
     return False, ""
 
 
@@ -116,56 +81,38 @@ def is_tex_available() -> bool:
 
 def unit_label(symbol: str, unit: str | None = None, brackets: str = "[]") -> str:
     r"""
-    Build a cleanly formatted LaTeX axis label compatible with both usetex and STIX mathtext.
+    Build a "symbol [unit]" math label that works with usetex and mathtext.
 
-    Examples
-    --------
     >>> unit_label(r"H_0", r"\mathrm{km\ s^{-1}\ Mpc^{-1}}")
     '$H_0\\ [\\mathrm{km\\ s^{-1}\\ Mpc^{-1}}]$'
     """
     sym = symbol.strip().strip("$")
     if not unit:
         return f"${sym}$"
-    u = unit.strip().strip("$")
-    left, right = brackets[0], brackets[1]
-    return rf"${sym}\ {left}{u}{right}$"
+    return rf"${sym}\ {brackets[0]}{unit.strip().strip('$')}{brackets[1]}$"
+
+
+def _split_math(text: str) -> list[tuple[str, bool]]:
+    return [(part, part.startswith("$") and part.endswith("$")) for part in _MATH_SPAN_RE.split(text)]
 
 
 def escape_tex_outside_math(text: str) -> str:
-    """
-    Escape TeX-special characters (%, &, #) that appear outside $...$ math spans.
-    Safe to call on legends/annotations when text.usetex=True.
-    """
+    """Escape %, & and # that appear outside $...$ math spans."""
     if not text:
         return text
-    parts = _MATH_SPAN_RE.split(text)
-    out = []
-    for part in parts:
-        if part.startswith("$") and part.endswith("$"):
-            out.append(part)
-        else:
-            out.append(_UNESCAPED_TEX_SPECIAL_RE.sub(r"\\\1", part))
-    return "".join(out)
+    return "".join(part if is_math else _UNESCAPED_TEX_SPECIAL_RE.sub(r"\\\1", part) for part, is_math in _split_math(text))
 
 
 def lint_latex_text(text: str, usetex_enabled: bool = False) -> list[str]:
-    """
-    Check a plot label or legend string for common LaTeX / mathtext mistakes.
-    Returns a list of human-readable warning strings.
-    """
+    """Return warnings for unbalanced $, raw sub/superscripts outside math, and unescaped TeX specials."""
     if not text or not text.strip():
         return []
+    if len(re.findall(r"(?<!\\)\$", text)) % 2:
+        return [f"Unbalanced '$' in label {text!r}."]
 
     warnings: list[str] = []
-
-    unescaped_dollars = len(re.findall(r"(?<!\\)\$", text))
-    if unescaped_dollars % 2 != 0:
-        warnings.append(f"Unbalanced '$' in label {text!r}.")
-        return warnings
-
-    parts = _MATH_SPAN_RE.split(text)
-    for part in parts:
-        if part.startswith("$") and part.endswith("$"):
+    for part, is_math in _split_math(text):
+        if is_math:
             continue
         if _RAW_SUB_SUP_RE.search(part):
             warnings.append(
@@ -177,5 +124,4 @@ def lint_latex_text(text: str, usetex_enabled: bool = False) -> list[str]:
                 f"Unescaped TeX character (%, &, or #) in {text!r} while usetex=True; "
                 "escape with backslash or use escape_tex_outside_math()."
             )
-
     return warnings
