@@ -13,6 +13,29 @@ Dynamic, journal-agnostic publication plotting package + AI-agent contract for a
 
 ---
 
+## Gallery
+
+Every figure below comes from [`examples/generate_gallery.py`](examples/generate_gallery.py) with no manual tweaking: build with an archetype, plot, then `astro.save(...)`.
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/gallery/01_spectrum_residuals.png" alt="Emission-line spectrum with best-fit model and normalized residuals"><br><sub><code>fig_residuals</code>: spectrum + residual panel</sub></td>
+    <td align="center" width="50%"><img src="docs/gallery/02_cosmology_curves.png" alt="Luminosity distance versus redshift for three cosmologies"><br><sub><code>fig_xy</code>: luminosity distance vs. redshift</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/gallery/03_sersic_map.png" alt="Sersic surface-brightness map with contours, scale bar, and colorbar"><br><sub><code>fig_image</code> + <code>add_scalebar</code>: surface-brightness map</sub></td>
+    <td align="center"><img src="docs/gallery/04_corner_mcmc.png" alt="Two-chain MCMC corner plot of Omega_m, sigma_8, and H_0"><br><sub><code>fig_corner</code>: two-chain MCMC posterior</sub></td>
+  </tr>
+</table>
+
+Regenerate them (rendered with full LaTeX when `latex` and `dvipng` are on `PATH`):
+
+```bash
+python examples/generate_gallery.py docs/gallery
+```
+
+---
+
 ## 1. Push Once to GitHub
 
 ```bash

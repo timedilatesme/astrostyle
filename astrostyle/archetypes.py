@@ -524,10 +524,10 @@ def fig_corner(
     colors = PALETTES.get(palette, PALETTES["astro_high_contrast"])
 
     if ranges is None:
-        stacked = np.vstack(chain_list)
         computed_ranges = []
         for i in range(n_dim):
-            lo, hi = np.percentile(stacked[:, i], [0.4, 99.6])
+            bounds = np.array([np.percentile(c[:, i], [0.4, 99.6]) for c in chain_list])
+            lo, hi = bounds[:, 0].min(), bounds[:, 1].max()
             pad = 0.08 * (hi - lo)
             computed_ranges.append((float(lo - pad), float(hi + pad)))
     else:
@@ -542,6 +542,7 @@ def fig_corner(
 
             for i, samples in enumerate(chain_list):
                 c = colors[i % len(colors)]
+                rgb = mpl.colors.to_rgb(c)
                 corner.corner(
                     samples,
                     fig=fig,
@@ -555,7 +556,7 @@ def fig_corner(
                     plot_datapoints=False,
                     plot_density=False,
                     fill_contours=True,
-                    contourf_kwargs={"alpha": 0.26},
+                    contourf_kwargs={"colors": [(*rgb, 0.0), (*rgb, 0.16), (*rgb, 0.32)]},
                     contour_kwargs={"linewidths": mpl.rcParams["lines.linewidth"] * 0.9},
                     hist_kwargs={"density": True, "linewidth": mpl.rcParams["lines.linewidth"]},
                     label_kwargs={
@@ -593,7 +594,9 @@ def fig_corner(
             ax.xaxis.set_major_locator(MaxNLocator(nbins=max_n_ticks, prune="both"))
             if r == c:
                 ax._is_astro_marginal = True
-                ax.set_ylim(0.0, None)
+                ys = [p.get_xy()[:, 1] for p in ax.patches] + [l.get_ydata() for l in ax.lines if len(l.get_ydata()) > 2]
+                ymax = max((float(np.max(y)) for y in ys if len(y)), default=0.0)
+                ax.set_ylim(0.0, ymax * 1.08 if ymax > 0 else None)
             else:
                 ax.yaxis.set_major_locator(MaxNLocator(nbins=max_n_ticks, prune="both"))
             ax.tick_params(axis="both", labelrotation=0)

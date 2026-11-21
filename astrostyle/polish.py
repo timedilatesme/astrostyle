@@ -9,6 +9,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import PathCollection, QuadMesh
+from matplotlib.layout_engine import PlaceHolderLayoutEngine
 from matplotlib.ticker import AutoMinorLocator, LogLocator, ScalarFormatter
 
 from .core import DARK_CMAP_NAMES
@@ -256,6 +257,10 @@ def save(
     if out.suffix.lower() in {".pdf", ".png", ".svg", ".eps"}:
         out = out.with_suffix("")
     out.parent.mkdir(parents=True, exist_ok=True)
+
+    # bbox_inches="tight" restores a None engine via rcParams, re-enabling constrained layout on later saves
+    if fig.get_layout_engine() is None:
+        fig.set_layout_engine(PlaceHolderLayoutEngine(adjust_compatible=True, colorbar_gridspec=True))
 
     written: list[Path] = []
     for ext in formats:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 import numpy as np
 
@@ -129,7 +130,7 @@ def make_corner_plot(out_dir: Path) -> None:
 
 
 def main() -> None:
-    out_dir = Path("gallery_output")
+    out_dir = Path(sys.argv[1] if len(sys.argv) > 1 else "gallery_output")
     print(f"LaTeX toolchain detected: {astro.is_tex_available()}")
     make_spectrum_residuals(out_dir)
     make_cosmology_curves(out_dir)
