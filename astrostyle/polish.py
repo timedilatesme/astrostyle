@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -55,6 +55,19 @@ def _auto_rasterize_heavy_artists(ax: mpl.axes.Axes, threshold: int = RASTERIZE_
     return count
 
 
+def style_wcs_coords(ax) -> None:
+    """Inward major + minor ticks on all four sides of a WCSAxes, labels bottom/left."""
+    for coord in ax.coords:
+        coord.set_ticks_position("all")
+        coord.set_ticklabel_position("bl")
+        coord.display_minor_ticks(True)
+        coord.set_ticks(
+            direction="in",
+            size=mpl.rcParams["xtick.major.size"],
+            width=mpl.rcParams["xtick.major.width"],
+        )
+
+
 def _enforce_minor_and_inward_ticks(ax: mpl.axes.Axes) -> None:
     """Guarantee thick borders and inward major + minor ticks on all four sides."""
     lw = mpl.rcParams["axes.linewidth"]
@@ -62,15 +75,7 @@ def _enforce_minor_and_inward_ticks(ax: mpl.axes.Axes) -> None:
         spine.set_linewidth(lw)
 
     if _is_wcs_axis(ax):
-        for coord in ax.coords:
-            coord.set_ticks_position("all")
-            coord.set_ticklabel_position("bl")
-            coord.display_minor_ticks(True)
-            coord.set_ticks(
-                direction="in",
-                size=mpl.rcParams["xtick.major.size"],
-                width=mpl.rcParams["xtick.major.width"],
-            )
+        style_wcs_coords(ax)
         return
 
     if _is_colorbar_axis(ax):
@@ -152,14 +157,18 @@ def lint_fig(fig: mpl.figure.Figure, verbose: bool = True) -> list[str]:
 
     try:
         fig.canvas.draw()
-        renderer = fig.canvas.get_renderer()
+        issues += _tick_overlap_issues(fig, fig.canvas.get_renderer())
     except Exception as exc:
         issues.append(f"[render] Failed to draw canvas for layout inspection: {exc}")
-        if verbose:
-            for msg in issues:
-                print(f"[astrostyle WARNING] {msg}")
-        return issues
 
+    if verbose:
+        for msg in issues:
+            print(f"[astrostyle WARNING] {msg}")
+    return issues
+
+
+def _tick_overlap_issues(fig: mpl.figure.Figure, renderer) -> list[str]:
+    issues: list[str] = []
     for idx, ax in enumerate(fig.axes):
         if not ax.get_visible() or _is_colorbar_axis(ax) or _is_wcs_axis(ax):
             continue
@@ -177,10 +186,6 @@ def lint_fig(fig: mpl.figure.Figure, verbose: bool = True) -> list[str]:
                         "Use MaxNLocator(nbins=3, prune='both') or increase figure width."
                     )
                     break
-
-    if verbose:
-        for msg in issues:
-            print(f"[astrostyle WARNING] {msg}")
     return issues
 
 

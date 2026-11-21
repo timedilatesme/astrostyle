@@ -36,27 +36,14 @@ python examples/generate_gallery.py docs/gallery
 
 ---
 
-## 1. Push Once to GitHub
-
-```bash
-unzip astrostyle.zip
-cd astrostyle
-git init
-git add .
-git commit -m "Initial commit: dynamic astrostyle plotting package"
-git branch -M main
-git remote add origin https://github.com/<your-username>/astrostyle.git
-git push -u origin main
-```
-
-## 2. Use in Any Science Project (Zero File Copying)
+## Installation
 
 Install directly from GitHub into your project environment:
 
 ```bash
-pip install "git+https://github.com/<your-username>/astrostyle.git"
+pip install "git+https://github.com/timedilatesme/astrostyle.git"
 # Optional extras for Astropy WCS maps and external corner.py:
-pip install "astrostyle[all] @ git+https://github.com/<your-username>/astrostyle.git"
+pip install "astrostyle[all] @ git+https://github.com/timedilatesme/astrostyle.git"
 ```
 
 Initialize the compact 5-line `AGENTS.md` + 1-line `CLAUDE.md` stub in your project root:
@@ -69,7 +56,7 @@ Any AI agent working on your project will now run `python -m astrostyle.guide` a
 
 ---
 
-## 3. Quick Usage Examples
+## Quick Start
 
 ```python
 import astrostyle as astro
@@ -91,9 +78,8 @@ fig, axes = astro.fig_corner(
 astro.save(fig, "figures/posterior_corner")
 ```
 
-Run the included gallery smoke test or unit tests:
+## Tests
 
 ```bash
-python examples/generate_gallery.py
 python -m unittest discover -s tests -v
 ```

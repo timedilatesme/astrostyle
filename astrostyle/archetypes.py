@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -10,7 +10,6 @@ import numpy as np
 from matplotlib.lines import Line2D
 from matplotlib.patches import Ellipse
 from matplotlib.ticker import MaxNLocator
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 
 from .core import (
@@ -23,6 +22,18 @@ from .core import (
     UseTexMode,
     apply_style,
 )
+from .polish import style_wcs_coords
+
+
+def _attach_colorbar_axes(fig, ax, pad: float, width: float) -> mpl.axes.Axes:
+    """Sibling colorbar axes; polish() re-syncs it to ax's post-aspect box (inset_axes clips under tight bbox)."""
+    pos = ax.get_position()
+    cax = fig.add_axes([pos.x1 + pad * pos.width, pos.y0, width * pos.width, pos.height])
+    cax._is_astro_colorbar = True
+    cax._astro_parent_ax = ax
+    cax._astro_cbar_pad = pad
+    cax._astro_cbar_width = width
+    return cax
 
 
 def fig_xy(
@@ -37,14 +48,7 @@ def fig_xy(
     **subplot_kwargs,
 ):
     """1D curves, SEDs, light curves, scaling relations, and scatter/errorbar plots."""
-    apply_style(
-        width=width,
-        frame_weight=frame_weight,
-        text_scale=text_scale,
-        context=context,
-        usetex=usetex,
-        palette=palette,
-    )
+    apply_style(width, frame_weight, text_scale, context, usetex, palette)
     return plt.subplots(figsize=(width, width * aspect), **subplot_kwargs)
 
 
@@ -64,14 +68,7 @@ def fig_residuals(
     Zero-gap stacked data/model + residual figure (spectra, light-curve fits, radial profiles).
     Returns (fig, ax_main, ax_res).
     """
-    apply_style(
-        width=width,
-        frame_weight=frame_weight,
-        text_scale=text_scale,
-        context=context,
-        usetex=usetex,
-        palette=palette,
-    )
+    apply_style(width, frame_weight, text_scale, context, usetex, palette)
     fig, (ax_main, ax_res) = plt.subplots(
         2,
         1,
@@ -106,14 +103,7 @@ def fig_image(
     Aspect-locked 2D image / FITS cutout / surface-brightness map with height-matched external colorbar.
     Returns (fig, ax, cax) when colorbar=True, else (fig, ax).
     """
-    apply_style(
-        width=width,
-        frame_weight=frame_weight,
-        text_scale=text_scale,
-        context=context,
-        usetex=usetex,
-        palette=palette,
-    )
+    apply_style(width, frame_weight, text_scale, context, usetex, palette)
     fig, ax = plt.subplots(
         figsize=(width, width * aspect),
         layout="none",
@@ -125,14 +115,7 @@ def fig_image(
     if not colorbar:
         return fig, ax
 
-    # Sibling axes synced to ax's exact rendered box in polish() — avoids inset_axes tight_bbox clipping
-    pos = ax.get_position()
-    cax = fig.add_axes([pos.x1 + cbar_pad * pos.width, pos.y0, cbar_width * pos.width, pos.height])
-    cax._is_astro_colorbar = True
-    cax._astro_parent_ax = ax
-    cax._astro_cbar_pad = cbar_pad
-    cax._astro_cbar_width = cbar_width
-    return fig, ax, cax
+    return fig, ax, _attach_colorbar_axes(fig, ax, cbar_pad, cbar_width)
 
 
 def fig_wcs(
@@ -158,37 +141,16 @@ def fig_wcs(
             "fig_wcs() requires astropy. Install with: pip install 'astrostyle[wcs]'"
         ) from exc
 
-    apply_style(
-        width=width,
-        frame_weight=frame_weight,
-        text_scale=text_scale,
-        context=context,
-        usetex=usetex,
-    )
+    apply_style(width, frame_weight, text_scale, context, usetex)
     fig_w = width * (1.20 if colorbar else 1.0)
     fig = plt.figure(figsize=(fig_w, width * aspect), layout="none")
     ax = fig.add_subplot(111, projection=wcs)
     ax.set_aspect("equal", adjustable="box")
-    for coord in ax.coords:
-        coord.set_ticks_position("all")
-        coord.set_ticklabel_position("bl")
-        coord.display_minor_ticks(True)
-        coord.set_ticks(
-            direction="in",
-            size=mpl.rcParams["xtick.major.size"],
-            width=mpl.rcParams["xtick.major.width"],
-        )
+    style_wcs_coords(ax)
 
     if not colorbar:
         return fig, ax
-
-    pos = ax.get_position()
-    cax = fig.add_axes([pos.x1 + cbar_pad * pos.width, pos.y0, 0.055 * pos.width, pos.height])
-    cax._is_astro_colorbar = True
-    cax._astro_parent_ax = ax
-    cax._astro_cbar_pad = cbar_pad
-    cax._astro_cbar_width = 0.055
-    return fig, ax, cax
+    return fig, ax, _attach_colorbar_axes(fig, ax, cbar_pad, 0.055)
 
 
 def add_beam(
@@ -271,14 +233,7 @@ def fig_grid(
     aspect = aspect or (0.78 * nrows / ncols)
     grid_text_scale = text_scale * (0.90 if ncols >= 3 else 1.0)
 
-    apply_style(
-        width=width,
-        frame_weight=frame_weight,
-        text_scale=grid_text_scale,
-        context=context,
-        usetex=usetex,
-        palette=palette,
-    )
+    apply_style(width, frame_weight, grid_text_scale, context, usetex, palette)
 
     if tight_panels:
         subplot_kwargs.setdefault("sharex", True)
@@ -393,8 +348,7 @@ def _plot_builtin_corner(
 ) -> np.ndarray:
     """Zero-dependency pure NumPy/Matplotlib corner plot with strictly 1:1 square panels."""
     n_dim = len(labels)
-    axes = fig.subplots(n_dim, n_dim, gridspec_kw={"wspace": 0.06, "hspace": 0.06})
-    axes = np.atleast_2d(axes)
+    axes = np.atleast_2d(fig.subplots(n_dim, n_dim))
 
     def _smooth_1d(arr: np.ndarray) -> np.ndarray:
         if smooth_sigma <= 0:
@@ -422,15 +376,10 @@ def _plot_builtin_corner(
         for c in range(n_dim):
             ax = axes[r, c]
             if c > r:
-                ax.set_visible(False)
                 continue
 
-            ax.set_box_aspect(1.0)
-
             if r == c:
-                ax._is_astro_marginal = True
                 lo, hi = ranges[c]
-                ymax = 0.0
                 for i, samples in enumerate(chains):
                     col_color = colors[i % len(colors)]
                     counts, edges = np.histogram(samples[:, c], bins=n_bins, range=(lo, hi), density=True)
@@ -438,13 +387,11 @@ def _plot_builtin_corner(
                     pdf = _smooth_1d(counts)
                     if pdf.max() > 0:
                         pdf = pdf / pdf.max()
-                    ymax = max(ymax, float(pdf.max()))
                     ax.plot(centers, pdf, color=col_color, lw=lw_curve)
                     ax.fill_between(centers, 0, pdf, color=col_color, alpha=0.18)
                 if truths is not None:
                     ax.axvline(truths[c], color="#444444", ls="--", lw=lw_curve * 0.7)
                 ax.set_xlim(lo, hi)
-                ax.set_ylim(0.0, max(ymax * 1.12, 1.0))
             else:
                 xlo, xhi = ranges[c]
                 ylo, yhi = ranges[r]
@@ -512,14 +459,7 @@ def fig_corner(
     width = width or (DOUBLE_COL if n_dim >= 3 else 4.6)
 
     corner_text_scale = text_scale * (1.0 if n_dim <= 3 else max(0.78, 1.0 - 0.06 * (n_dim - 3)))
-    apply_style(
-        width=width,
-        frame_weight=frame_weight,
-        text_scale=corner_text_scale,
-        context=context,
-        usetex=usetex,
-        palette=palette,
-    )
+    apply_style(width, frame_weight, corner_text_scale, context, usetex, palette)
 
     colors = PALETTES.get(palette, PALETTES["astro_high_contrast"])
 

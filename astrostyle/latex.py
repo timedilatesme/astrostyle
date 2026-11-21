@@ -115,7 +115,7 @@ def is_tex_available() -> bool:
 
 
 def unit_label(symbol: str, unit: str | None = None, brackets: str = "[]") -> str:
-    """
+    r"""
     Build a cleanly formatted LaTeX axis label compatible with both usetex and STIX mathtext.
 
     Examples
@@ -128,7 +128,7 @@ def unit_label(symbol: str, unit: str | None = None, brackets: str = "[]") -> st
         return f"${sym}$"
     u = unit.strip().strip("$")
     left, right = brackets[0], brackets[1]
-    return f"${sym}\ {left}{u}{right}$"
+    return rf"${sym}\ {left}{u}{right}$"
 
 
 def escape_tex_outside_math(text: str) -> str:

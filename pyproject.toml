@@ -4,14 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "astrostyle"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Dynamic, journal-agnostic publication plotting style and AI-agent contract for astrophysics figures."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-authors = [
-    {name = "Astrophysics Plotting Style"}
-]
+authors = [{name = "timedilatesme"}]
 dependencies = [
     "matplotlib>=3.7",
     "numpy>=1.23",
@@ -26,6 +24,9 @@ dev = ["pytest>=7.0"]
 [project.scripts]
 astrostyle-guide = "astrostyle.guide:main"
 astrostyle-init = "astrostyle.guide:init_project"
+
+[tool.setuptools.dynamic]
+version = {attr = "astrostyle.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["astrostyle*"]

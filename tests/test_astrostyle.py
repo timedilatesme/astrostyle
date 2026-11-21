@@ -47,8 +47,8 @@ class TestAstroStyle(unittest.TestCase):
         bad = lint_latex_text("Omega_m (km/s)")
         self.assertEqual(len(bad), 1)
         self.assertEqual(
-            escape_tex_outside_math("68% & 95% contours ($\sigma_8$)"),
-            "68\% \& 95\% contours ($\sigma_8$)",
+            escape_tex_outside_math(r"68% & 95% contours ($\sigma_8$)"),
+            r"68\% \& 95\% contours ($\sigma_8$)",
         )
 
     def test_corner_plot_square_geometry_and_zero_warnings(self):

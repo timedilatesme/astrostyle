@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from contextlib import contextmanager
 from typing import Literal
 
@@ -164,7 +165,6 @@ def apply_style(
         tex_enabled = True
         preamble = detected_preamble or r"\usepackage{amsmath,amssymb,bm}"
         if not avail:
-            import warnings
             warnings.warn(
                 "usetex=True was explicitly requested, but latex/dvipng probe failed. "
                 "Matplotlib may raise an error when saving unless TeX is installed.",
